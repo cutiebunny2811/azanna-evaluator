@@ -118,6 +118,12 @@ export default function App() {
     void refreshCalibration();
   }, [refreshCalibration, session]);
 
+  useEffect(() => {
+    if (!session) return;
+    const timer = window.setInterval(() => { void refreshCalibration(); }, 60_000);
+    return () => window.clearInterval(timer);
+  }, [refreshCalibration, session]);
+
   const signInToCloud = async (email: string) => {
     if (!supabase) return;
     setCloudBusy(true);
@@ -251,10 +257,11 @@ export default function App() {
         evidence={calibration}
         loading={calibrationBusy}
         error={calibrationError}
+        anchorMode={!evaluation}
         onRefresh={refreshCalibration}
       />
 
-      <details className="settings-panel">
+      {dataset && <details className="settings-panel">
         <summary><Settings2 size={18} /><span>{t("config")}</span><small>OOS {config.oosPercent}% · DD {config.drawdownTolerancePercent}%</small></summary>
       <section className="settings band" aria-label={t("config")}>
         <div className="section-label"><Settings2 size={17} /><span>{t("config")}</span></div>
@@ -266,10 +273,10 @@ export default function App() {
         <label>{t("minTrades")}<input type="number" min="10" max="1000" value={config.minTrades} onChange={(event) => updateConfig("minTrades", Number(event.target.value))} /></label>
         <label className="checkbox"><input type="checkbox" checked={config.lowFrequencyOverride} onChange={(event) => updateConfig("lowFrequencyOverride", event.target.checked)} /><span>{t("lowFreq")}</span></label>
       </section>
-      </details>
+      </details>}
 
       {running && <div className="loading"><span />{t("running")}</div>}
-      {!evaluation && !running && <section className="empty-state"><BarChart3 size={34} /><p>{t("noData")}</p></section>}
+      {!evaluation && !calibration && !running && <section className="empty-state"><BarChart3 size={34} /><p>{t("noData")}</p></section>}
 
       {evaluation && <>
         <section className={`verdict verdict--${evaluation.verdict.toLowerCase().replaceAll(" ", "-").replace("/", "-")}`}>
