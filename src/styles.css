@@ -61,9 +61,10 @@ button:focus-visible, input:focus-visible, a:focus-visible { outline: 2px solid 
 
 main { min-width: 0; }
 .topbar { min-height: 132px; display: flex; justify-content: space-between; align-items: center; gap: 28px; padding: 26px 34px; border-bottom: 1px solid var(--line); }
+.topbar > div { min-width: 0; max-width: 100%; }
 .eyebrow { color: var(--green) !important; font: 600 10px Consolas, monospace; text-transform: uppercase; }
-.topbar h1 { margin: 6px 0; font-size: clamp(23px, 3vw, 36px); line-height: 1.05; }
-.topbar p { margin: 0; color: var(--muted); font-size: 13px; }
+.topbar h1 { margin: 6px 0; font-size: clamp(23px, 3vw, 36px); line-height: 1.05; overflow-wrap: anywhere; }
+.topbar p { margin: 0; color: var(--muted); font-size: 13px; overflow-wrap: anywhere; }
 .toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
 .button, .icon-button { border: 1px solid var(--line-strong); background: var(--panel-2); min-height: 38px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer; padding: 0 14px; border-radius: 4px; font-weight: 650; font-size: 12px; white-space: nowrap; }
 .button:hover, .icon-button:hover { border-color: var(--green); }
@@ -230,7 +231,7 @@ td { font-family: Consolas, monospace; }
 }
 
 @media (max-width: 850px) {
-  .app-shell { display: block; }
+  .app-shell { display: block; width: 100%; overflow-x: clip; }
   body { padding-bottom: calc(66px + env(safe-area-inset-bottom)); }
   .sidebar { position: fixed; inset: auto 0 0 0; width: 100%; height: calc(62px + env(safe-area-inset-bottom)); padding: 0 8px env(safe-area-inset-bottom); border: 0; border-top: 1px solid var(--line); background: color-mix(in srgb, var(--panel) 94%, transparent); backdrop-filter: blur(14px); z-index: 30; }
   .brand, .sidebar__meta { display: none; }

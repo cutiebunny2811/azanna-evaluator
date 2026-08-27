@@ -11,3 +11,5 @@ vite.config.d.ts
 *.db
 *.db-*
 logs/
+.chrome-qa-profile*/
+mobile-qa*.png
