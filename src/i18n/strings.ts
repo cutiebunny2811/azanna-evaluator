@@ -2,8 +2,8 @@ export type Language = "th" | "en";
 
 const strings = {
   en: {
-    brand: "AZANNA / EDGE AUDIT", privacy: "LOCAL ANALYSIS", overview: "Overview", performance: "Performance", risk: "Risk", validation: "Validation", deployment: "Deployment", trades: "Trades",
-    title: "Trading system evaluation", subtitle: "Evidence before capital. All trade data stays in this browser.", loadDemo: "Load demo", importCsv: "Import CSV", exportReport: "Export audit", dataSource: "Dataset", tradesCount: "trades", config: "Evaluation settings",
+    brand: "AZANNA / EDGE AUDIT", privacy: "LOCAL + RLS SYNC", overview: "Overview", performance: "Performance", risk: "Risk", validation: "Validation", deployment: "Deployment", trades: "Trades",
+    title: "Trading system evaluation", subtitle: "Evidence before capital. Local by default; cloud sync only after sign-in and explicit save.", loadDemo: "Load demo", importCsv: "Import CSV", exportReport: "Export audit", dataSource: "Dataset", tradesCount: "trades", config: "Evaluation settings",
     oosSplit: "OOS split", simulations: "Simulations", seed: "Random seed", ddTolerance: "Max DD tolerance", ruinLevel: "Ruin loss level", minTrades: "Minimum trades", lowFreq: "Documented low-frequency override",
     netProfit: "Net profit", expectancy: "Expectancy / trade", profitFactor: "Profit factor", maxDrawdown: "Max drawdown", riskOfRuin: "Risk of ruin", qualityScore: "Quality checks",
     equity: "Equity curve", drawdown: "Drawdown", monteCarlo: "Monte Carlo paths", distribution: "Terminal equity distribution", isoos: "IS / OOS evidence", gates: "Mandatory hard-fail gates", quality: "Scored quality metrics", warnings: "Evidence warnings", tradeLog: "Normalized trade log",
@@ -11,8 +11,8 @@ const strings = {
     order: "Order", date: "Date", side: "Side", stage: "Stage", regime: "Regime", netPnl: "Net PnL", r: "R", all: "All", is: "In-sample", oos: "Out-of-sample", clear: "Clear data",
   },
   th: {
-    brand: "AZANNA / EDGE AUDIT", privacy: "วิเคราะห์ในเครื่อง", overview: "ภาพรวม", performance: "ผลตอบแทน", risk: "ความเสี่ยง", validation: "การทดสอบ", deployment: "ความพร้อม", trades: "รายการเทรด",
-    title: "ประเมินความแข็งแรงของระบบเทรด", subtitle: "ดูหลักฐานก่อนเพิ่มทุน ข้อมูลการเทรดอยู่ในเบราว์เซอร์นี้เท่านั้น", loadDemo: "เปิดข้อมูลตัวอย่าง", importCsv: "นำเข้า CSV", exportReport: "ส่งออกรายงาน", dataSource: "ชุดข้อมูล", tradesCount: "ไม้", config: "ตั้งค่าการประเมิน",
+    brand: "AZANNA / EDGE AUDIT", privacy: "LOCAL + RLS SYNC", overview: "ภาพรวม", performance: "ผลตอบแทน", risk: "ความเสี่ยง", validation: "การทดสอบ", deployment: "ความพร้อม", trades: "รายการเทรด",
+    title: "ประเมินความแข็งแรงของระบบเทรด", subtitle: "ดูหลักฐานก่อนเพิ่มทุน เก็บในเครื่องเป็นค่าเริ่มต้น และซิงก์เมื่อเข้าสู่ระบบแล้วกดบันทึก", loadDemo: "เปิดข้อมูลตัวอย่าง", importCsv: "นำเข้า CSV", exportReport: "ส่งออกรายงาน", dataSource: "ชุดข้อมูล", tradesCount: "ไม้", config: "ตั้งค่าการประเมิน",
     oosSplit: "สัดส่วน OOS", simulations: "จำนวนการจำลอง", seed: "Random seed", ddTolerance: "เพดาน Drawdown", ruinLevel: "ระดับที่ถือว่า Ruin", minTrades: "จำนวนไม้ขั้นต่ำ", lowFreq: "ยกเว้นสำหรับระบบความถี่ต่ำที่มีเอกสาร",
     netProfit: "กำไรสุทธิ", expectancy: "กำไรคาดหวังต่อไม้", profitFactor: "Profit factor", maxDrawdown: "Drawdown สูงสุด", riskOfRuin: "โอกาสทุนเสียหายหนัก", qualityScore: "คุณภาพที่ผ่าน",
     equity: "เส้น Equity", drawdown: "ช่วงเงินทุนลดลง", monteCarlo: "เส้นทาง Monte Carlo", distribution: "การกระจาย Equity ปลายทาง", isoos: "เปรียบเทียบ IS / OOS", gates: "ด่านบังคับก่อนเพิ่มทุน", quality: "ตัวชี้วัดคุณภาพ", warnings: "คำเตือนด้านหลักฐาน", tradeLog: "รายการเทรดที่ปรับรูปแบบแล้ว",

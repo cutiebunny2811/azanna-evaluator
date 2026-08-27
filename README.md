@@ -1,7 +1,8 @@
 # Azanna Strategy Evaluator
 
 Privacy-first Phase 1 implementation of the Trading System Evaluation Dashboard PRD.
-All imported trades and calculations stay inside the browser.
+Imported trades are local by default. Signed-in users can explicitly save a run
+to Supabase for cross-device access.
 
 ## Web app
 
@@ -10,7 +11,31 @@ Production URL: <https://cutiebunny2811.github.io/azanna-evaluator/>
 The site is an installable PWA designed for iPhone. In Safari, use Share →
 Add to Home Screen → Open as Web App. The application shell works offline after
 the first successful visit. Imported CSV data is processed in the browser and
-is never committed to this repository or uploaded by the application.
+cached in IndexedDB on that device. It is never committed to this repository.
+Cloud upload happens only after the user signs in and presses **Save current run**.
+
+## Cloud sync
+
+Supabase Auth uses a passwordless email magic link. The same account can load
+saved runs on desktop and iPhone. Cloud data is normalized into:
+
+- `azanna_trade_runs` for dataset metadata and evaluation headline metrics
+- `azanna_trades` for ordered normalized trades
+- `azanna_evaluations` for configuration and compact audit snapshots
+
+All three tables have Row Level Security enabled. Anonymous access is revoked,
+and authenticated users can access only rows owned by their `auth.uid()`.
+The frontend contains only the Supabase publishable key; no service-role key is
+used or committed.
+
+The schema is stored in
+`supabase/migrations/20260827142000_azanna_cloud_sync.sql`. Because the selected
+Supabase project is shared with other applications and has its own migration
+history, apply this migration with:
+
+```powershell
+npx supabase db query --linked --file supabase/migrations/20260827142000_azanna_cloud_sync.sql
+```
 
 ## Run
 

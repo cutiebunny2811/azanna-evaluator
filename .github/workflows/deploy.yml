@@ -41,6 +41,9 @@ jobs:
 
       - name: Build PWA
         run: npm run build
+        env:
+          VITE_SUPABASE_URL: https://zzynqlqnzdhkffvqvpzt.supabase.co
+          VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_x5Li82tQRPoiKP55IrNlvA_mNypDvDz
 
       - name: Configure Pages
         uses: actions/configure-pages@v5

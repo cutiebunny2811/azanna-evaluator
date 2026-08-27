@@ -33,6 +33,16 @@ export default defineConfig({
       },
     }),
   ],
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          charts: ["chart.js", "react-chartjs-2"],
+          supabase: ["@supabase/supabase-js"],
+        },
+      },
+    },
+  },
   server: { host: "127.0.0.1", port: 4173 },
   test: { environment: "node", include: ["src/tests/**/*.test.ts"] },
 });

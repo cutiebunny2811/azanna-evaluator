@@ -1,14 +1,19 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { Session } from "@supabase/supabase-js";
 import { BarChart3, CheckCircle2, Download, FileUp, FlaskConical, Languages, Moon, Settings2, ShieldCheck, Sun, Table2, Trash2, TrendingUp } from "lucide-react";
 import { DistributionChart, DrawdownChart, EquityChart, IsoosChart, MonteCarloChart } from "./charts/Charts";
+import { CloudSyncPanel } from "./components/CloudSyncPanel";
 import { GateRow } from "./components/GateRow";
 import { MetricTile } from "./components/MetricTile";
 import { evaluate } from "./core/deployment";
 import { inferInitialEquity } from "./core/drawdown";
 import { buildMarkdownReport, downloadMarkdown } from "./core/report";
+import { deleteCloudRun, listCloudRuns, loadCloudRun, saveCloudRun, type CloudRunSummary } from "./data/cloud";
 import { createDemoTrades } from "./data/demo";
 import { readCsvFile } from "./data/csv";
+import { clearCachedState, loadCachedState, saveCachedState } from "./data/localCache";
 import { localizeGate, translator, type Language } from "./i18n/strings";
+import { isCloudConfigured, supabase } from "./lib/supabase";
 import type { Evaluation, EvaluationConfig, ImportResult, MonteCarloResult } from "./types";
 
 const defaultConfig: EvaluationConfig = { oosPercent: 30, simulations: 1000, seed: 20260827, ruinThresholdPercent: 50, drawdownTolerancePercent: 20, minTrades: 100, lowFrequencyOverride: false };
@@ -22,11 +27,41 @@ export default function App() {
   const [dataset, setDataset] = useState<ImportResult | null>(null);
   const [evaluation, setEvaluation] = useState<Evaluation | null>(null);
   const [running, setRunning] = useState(false);
+  const [cacheReady, setCacheReady] = useState(false);
+  const [session, setSession] = useState<Session | null>(null);
+  const [cloudRuns, setCloudRuns] = useState<CloudRunSummary[]>([]);
+  const [cloudBusy, setCloudBusy] = useState(false);
+  const [cloudNotice, setCloudNotice] = useState("");
   const fileInput = useRef<HTMLInputElement>(null);
   const t = translator(language);
 
   useEffect(() => { document.documentElement.dataset.theme = theme; localStorage.setItem("azanna-theme", theme); }, [theme]);
   useEffect(() => { document.documentElement.lang = language; localStorage.setItem("azanna-language", language); }, [language]);
+
+  useEffect(() => {
+    let active = true;
+    loadCachedState()
+      .then((cached) => {
+        if (!active || !cached) return;
+        setDataset(cached.dataset);
+        setConfig(cached.config);
+      })
+      .finally(() => { if (active) setCacheReady(true); });
+    return () => { active = false; };
+  }, []);
+
+  useEffect(() => {
+    if (!cacheReady) return;
+    if (dataset) void saveCachedState(dataset, config);
+    else void clearCachedState();
+  }, [cacheReady, config, dataset]);
+
+  useEffect(() => {
+    if (!supabase) return;
+    void supabase.auth.getSession().then(({ data }) => setSession(data.session));
+    const { data } = supabase.auth.onAuthStateChange((_event, nextSession) => setSession(nextSession));
+    return () => data.subscription.unsubscribe();
+  }, []);
 
   useEffect(() => {
     if (!dataset?.trades.length) { setEvaluation(null); return; }
@@ -47,6 +82,93 @@ export default function App() {
   const updateConfig = <K extends keyof EvaluationConfig>(key: K, value: EvaluationConfig[K]) => setConfig((current) => ({ ...current, [key]: value }));
   const statusText = (status: string) => status === "pass" ? t("pass") : status === "fail" ? t("fail") : status === "warn" ? t("warn") : t("na");
   const report = useMemo(() => dataset && evaluation ? buildMarkdownReport(dataset, evaluation, config, language) : "", [dataset, evaluation, config, language]);
+  const cloudText = (thai: string, english: string) => language === "th" ? thai : english;
+  const errorText = (error: unknown) => error instanceof Error ? error.message : String(error);
+
+  const refreshCloudRuns = useCallback(async () => {
+    if (!session) { setCloudRuns([]); return; }
+    setCloudRuns(await listCloudRuns());
+  }, [session]);
+
+  useEffect(() => {
+    if (!session) { setCloudRuns([]); return; }
+    void refreshCloudRuns().catch((error) => setCloudNotice(errorText(error)));
+  }, [refreshCloudRuns, session]);
+
+  const signInToCloud = async (email: string) => {
+    if (!supabase) return;
+    setCloudBusy(true);
+    setCloudNotice("");
+    try {
+      const redirectTo = new URL(import.meta.env.BASE_URL, window.location.origin).href;
+      const { error } = await supabase.auth.signInWithOtp({ email, options: { emailRedirectTo: redirectTo } });
+      if (error) throw error;
+      setCloudNotice(cloudText("ส่งลิงก์เข้าสู่ระบบแล้ว กรุณาเปิดอีเมล", "Magic link sent. Check your email."));
+    } catch (error) {
+      setCloudNotice(errorText(error));
+    } finally {
+      setCloudBusy(false);
+    }
+  };
+
+  const signOutOfCloud = async () => {
+    if (!supabase) return;
+    setCloudBusy(true);
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      setCloudRuns([]);
+      setCloudNotice(cloudText("ออกจากระบบแล้ว", "Signed out."));
+    } catch (error) {
+      setCloudNotice(errorText(error));
+    } finally {
+      setCloudBusy(false);
+    }
+  };
+
+  const saveCurrentToCloud = async () => {
+    if (!session || !dataset || !evaluation) return;
+    setCloudBusy(true);
+    setCloudNotice(cloudText("กำลังบันทึก...", "Saving..."));
+    try {
+      await saveCloudRun(session.user.id, dataset, evaluation, config);
+      await refreshCloudRuns();
+      setCloudNotice(cloudText("บันทึกขึ้นคลาวด์เรียบร้อย", "Saved to cloud."));
+    } catch (error) {
+      setCloudNotice(errorText(error));
+    } finally {
+      setCloudBusy(false);
+    }
+  };
+
+  const loadFromCloud = async (runId: string) => {
+    setCloudBusy(true);
+    setCloudNotice(cloudText("กำลังโหลด...", "Loading..."));
+    try {
+      const loaded = await loadCloudRun(runId);
+      setConfig(loaded.config);
+      setDataset(loaded.dataset);
+      setCloudNotice(cloudText("โหลดชุดข้อมูลแล้ว", "Cloud run loaded."));
+    } catch (error) {
+      setCloudNotice(errorText(error));
+    } finally {
+      setCloudBusy(false);
+    }
+  };
+
+  const removeFromCloud = async (runId: string) => {
+    if (!window.confirm(cloudText("ลบชุดข้อมูลนี้จากคลาวด์ถาวรหรือไม่?", "Permanently delete this cloud run?"))) return;
+    setCloudBusy(true);
+    try {
+      await deleteCloudRun(runId);
+      await refreshCloudRuns();
+      setCloudNotice(cloudText("ลบชุดข้อมูลแล้ว", "Cloud run deleted."));
+    } catch (error) {
+      setCloudNotice(errorText(error));
+    } finally {
+      setCloudBusy(false);
+    }
+  };
 
   return <div className="app-shell">
     <aside className="sidebar">
@@ -83,6 +205,22 @@ export default function App() {
         </div>
         {dataset && <button className="icon-button danger" title={t("clear")} onClick={() => setDataset(null)}><Trash2 size={18} /></button>}
       </section>
+
+      <CloudSyncPanel
+        language={language}
+        configured={isCloudConfigured}
+        userEmail={session?.user.email ?? null}
+        runs={cloudRuns}
+        busy={cloudBusy}
+        notice={cloudNotice}
+        canSave={Boolean(dataset && evaluation && !running)}
+        onSignIn={signInToCloud}
+        onSignOut={signOutOfCloud}
+        onSave={saveCurrentToCloud}
+        onRefresh={refreshCloudRuns}
+        onLoad={loadFromCloud}
+        onDelete={removeFromCloud}
+      />
 
       <details className="settings-panel">
         <summary><Settings2 size={18} /><span>{t("config")}</span><small>OOS {config.oosPercent}% · DD {config.drawdownTolerancePercent}%</small></summary>
