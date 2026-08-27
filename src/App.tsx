@@ -3,12 +3,14 @@ import type { Session } from "@supabase/supabase-js";
 import { BarChart3, CheckCircle2, Download, FileUp, FlaskConical, Languages, Moon, Settings2, ShieldCheck, Sun, Table2, Trash2, TrendingUp } from "lucide-react";
 import { DistributionChart, DrawdownChart, EquityChart, IsoosChart, MonteCarloChart } from "./charts/Charts";
 import { CloudSyncPanel } from "./components/CloudSyncPanel";
+import { AiGateEvaluation } from "./components/AiGateEvaluation";
 import { GateRow } from "./components/GateRow";
 import { MetricTile } from "./components/MetricTile";
 import { evaluate } from "./core/deployment";
 import { inferInitialEquity } from "./core/drawdown";
 import { buildMarkdownReport, downloadMarkdown } from "./core/report";
 import { deleteCloudRun, listCloudRuns, loadCloudRun, saveCloudRun, type CloudRunSummary } from "./data/cloud";
+import { loadCalibrationEvidence, type CalibrationEvidence } from "./data/calibration";
 import { createDemoTrades } from "./data/demo";
 import { readCsvFile } from "./data/csv";
 import { clearCachedState, loadCachedState, saveCachedState } from "./data/localCache";
@@ -19,6 +21,7 @@ import type { Evaluation, EvaluationConfig, ImportResult, MonteCarloResult } fro
 const defaultConfig: EvaluationConfig = { oosPercent: 30, simulations: 1000, seed: 20260827, ruinThresholdPercent: 50, drawdownTolerancePercent: 20, minTrades: 100, lowFrequencyOverride: false };
 const money = (value: number) => `${value < 0 ? "-" : ""}$${Math.abs(value).toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
 const ratio = (value: number | null) => value === null ? "N/A" : Number.isFinite(value) ? value.toFixed(2) : "∞";
+const errorText = (error: unknown) => error instanceof Error ? error.message : String(error);
 
 export default function App() {
   const [language, setLanguage] = useState<Language>(() => (localStorage.getItem("azanna-language") as Language) || "th");
@@ -32,6 +35,9 @@ export default function App() {
   const [cloudRuns, setCloudRuns] = useState<CloudRunSummary[]>([]);
   const [cloudBusy, setCloudBusy] = useState(false);
   const [cloudNotice, setCloudNotice] = useState("");
+  const [calibration, setCalibration] = useState<CalibrationEvidence | null>(null);
+  const [calibrationBusy, setCalibrationBusy] = useState(false);
+  const [calibrationError, setCalibrationError] = useState("");
   const fileInput = useRef<HTMLInputElement>(null);
   const t = translator(language);
 
@@ -83,17 +89,34 @@ export default function App() {
   const statusText = (status: string) => status === "pass" ? t("pass") : status === "fail" ? t("fail") : status === "warn" ? t("warn") : t("na");
   const report = useMemo(() => dataset && evaluation ? buildMarkdownReport(dataset, evaluation, config, language) : "", [dataset, evaluation, config, language]);
   const cloudText = (thai: string, english: string) => language === "th" ? thai : english;
-  const errorText = (error: unknown) => error instanceof Error ? error.message : String(error);
 
   const refreshCloudRuns = useCallback(async () => {
     if (!session) { setCloudRuns([]); return; }
     setCloudRuns(await listCloudRuns());
   }, [session]);
 
+  const refreshCalibration = useCallback(async () => {
+    if (!session) { setCalibration(null); return; }
+    setCalibrationBusy(true);
+    setCalibrationError("");
+    try {
+      setCalibration(await loadCalibrationEvidence());
+    } catch (error) {
+      setCalibrationError(errorText(error));
+    } finally {
+      setCalibrationBusy(false);
+    }
+  }, [session]);
+
   useEffect(() => {
     if (!session) { setCloudRuns([]); return; }
     void refreshCloudRuns().catch((error) => setCloudNotice(errorText(error)));
   }, [refreshCloudRuns, session]);
+
+  useEffect(() => {
+    if (!session) { setCalibration(null); return; }
+    void refreshCalibration();
+  }, [refreshCalibration, session]);
 
   const signInToCloud = async (email: string) => {
     if (!supabase) return;
@@ -220,6 +243,15 @@ export default function App() {
         onRefresh={refreshCloudRuns}
         onLoad={loadFromCloud}
         onDelete={removeFromCloud}
+      />
+
+      <AiGateEvaluation
+        language={language}
+        signedIn={Boolean(session)}
+        evidence={calibration}
+        loading={calibrationBusy}
+        error={calibrationError}
+        onRefresh={refreshCalibration}
       />
 
       <details className="settings-panel">

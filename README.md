@@ -28,6 +28,13 @@ and authenticated users can access only rows owned by their `auth.uid()`.
 The frontend contains only the Supabase publishable key; no service-role key is
 used or committed.
 
+The scanner uploads AI-gate calibration evidence automatically through the
+single `azanna_ingest_calibration` RPC. Its scoped token cannot read trade runs
+or access any other application in the shared project. Signed-in users read
+their own `azanna_calibration_state` and `azanna_calibration_candidates` rows
+through RLS. The dashboard reports raw candidate counts alongside independent
+market-episode counts so repeated M5 setups do not inflate confidence.
+
 The schema is stored in
 `supabase/migrations/20260827142000_azanna_cloud_sync.sql`. Because the selected
 Supabase project is shared with other applications and has its own migration
