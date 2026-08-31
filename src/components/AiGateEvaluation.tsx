@@ -21,6 +21,7 @@ export function AiGateEvaluation(props: Props) {
   const evidence = props.evidence;
   const level = evidence?.episodeLevel;
   const analysis = evidence ? analyzeCalibration(evidence) : null;
+  const missingShadow = level?.missing_shadow ?? analysis?.outcomes.MISSING ?? 0;
   const anchors = {
     performance: props.anchorMode ? "performance" : "ai-performance",
     risk: props.anchorMode ? "risk" : "ai-risk",
@@ -54,7 +55,7 @@ export function AiGateEvaluation(props: Props) {
           <div><span>{th ? "หลบขาดทุน" : "Losses avoided"}</span><strong className="positive">{level?.ai_avoided_losses ?? 0}</strong><small>{th ? "REJECT แล้ว SL ถึงก่อน" : "Rejected, then SL hit first"}</small></div>
           <div><span>{th ? "พลาดกำไร" : "Winners missed"}</span><strong className={(level?.ai_missed_winners ?? 0) > 0 ? "negative" : "positive"}>{level?.ai_missed_winners ?? 0}</strong><small>{th ? "REJECT แล้ว TP ถึงก่อน" : "Rejected, then TP hit first"}</small></div>
           <div><span>{th ? "มูลค่า AI สุทธิ" : "AI net value"}</span><strong className={(level?.ai_net_value_r ?? 0) >= 0 ? "positive" : "negative"}>{rValue(level?.ai_net_value_r ?? 0)}</strong><small>{th ? "จากผลที่ตัดสินได้เท่านั้น" : "Resolved outcomes only"}</small></div>
-          <div><span>{th ? "รอผล / กำกวม" : "Pending / Ambiguous"}</span><strong>{level?.pending ?? 0} / {level?.ambiguous ?? 0}</strong><small>{th ? "ไม่นับเข้า expectancy" : "Excluded from expectancy"}</small></div>
+          <div><span>{th ? "รอผล / ไม่มี Shadow / กำกวม" : "Pending / Missing / Ambiguous"}</span><strong>{level?.pending ?? 0} / {missingShadow} / {level?.ambiguous ?? 0}</strong><small>{th ? "ไม่นับเข้า expectancy" : "Excluded from expectancy"}</small></div>
         </div>
 
         <div className="ai-eval__body">
@@ -95,6 +96,7 @@ export function AiGateEvaluation(props: Props) {
                 <div><span>{th ? "Candidate ซ้ำ" : "DUPLICATE RATE"}</span><strong>{(analysis.duplicateRate * 100).toFixed(1)}%</strong><small>{evidence.candidateLevel.candidate_count - analysis.episodes.length} {th ? "แถวไม่นับเป็น Sample อิสระ" : "rows excluded as independent samples"}</small></div>
                 <div><span>{th ? "ผลกำกวม" : "AMBIGUOUS"}</span><strong>{analysis.outcomes.AMBIGUOUS}</strong><small>{th ? "ไม่รวมใน Expectancy" : "Excluded from expectancy"}</small></div>
                 <div><span>{th ? "หมดเวลาก่อนแตะ" : "TIME EXPIRED"}</span><strong>{analysis.outcomes.TIME_EXPIRED}</strong><small>{th ? "ไม่จัดเป็น TP หรือ SL" : "Neither TP nor SL"}</small></div>
+                <div><span>{th ? "ไม่มี Shadow record" : "MISSING SHADOW"}</span><strong>{analysis.outcomes.MISSING}</strong><small>{th ? "ตรวจ pipeline แยกจาก Pending" : "Pipeline gap, not pending market data"}</small></div>
               </div>
               <figure className="calibration-regime-chart"><figcaption><span>{th ? "ผลตาม Regime / Direction" : "Regime / Direction outcomes"}</span><b>{analysis.regimes.length} SETUPS</b></figcaption><div><CalibrationRegimeChart analysis={analysis} /></div></figure>
             </div>
@@ -128,7 +130,7 @@ export function AiGateEvaluation(props: Props) {
             <td>{new Date(candidate.created_at).toLocaleString(th ? "th-TH" : "en-US", { dateStyle: "short", timeStyle: "short" })}</td>
             <td>{candidate.regime} {candidate.direction}</td>
             <td>{candidate.ai_reused ? "REUSED REJECT" : candidate.ai_final_action ?? "N/A"}</td>
-            <td>{candidate.shadow_status ?? "PENDING"}</td>
+            <td>{candidate.shadow_status ?? "NO_SHADOW"}</td>
             <td className={(candidate.hypothetical_r ?? 0) >= 0 ? "positive" : "negative"}>{rValue(candidate.hypothetical_r)}</td>
           </tr>)}</tbody></table>
         </div>

@@ -3,9 +3,9 @@ import { analyzeCalibration } from "../core/calibration";
 import type { CalibrationCandidate, CalibrationEvidence, CalibrationLevel } from "../data/calibration";
 
 const layer = { candidates: 0, resolved: 0, wins: 0, losses: 0, total_r: 0, expectancy_r: null };
-const level: CalibrationLevel = { candidate_count: 4, episode_count: 3, pending: 0, ambiguous: 0, time_expired: 0, ai_avoided_losses: 2, ai_missed_winners: 0, ai_net_value_r: 2, reject_reasons: {}, scanner: layer, hard_filter: layer, ai_gate: layer };
+const level: CalibrationLevel = { candidate_count: 4, episode_count: 3, pending: 0, missing_shadow: 0, ambiguous: 0, time_expired: 0, ai_avoided_losses: 2, ai_missed_winners: 0, ai_net_value_r: 2, reject_reasons: {}, scanner: layer, hard_filter: layer, ai_gate: layer };
 
-const candidate = (signal: number, status: string, r: number | null, duplicate = false): CalibrationCandidate => ({
+const candidate = (signal: number, status: string | null, r: number | null, duplicate = false): CalibrationCandidate => ({
   signal_id: signal,
   created_at: `2026-08-28T00:0${signal}:00Z`,
   symbol: "BTCUSDm",
@@ -44,5 +44,28 @@ describe("calibration analysis", () => {
     expect(result.maxConsecutiveLosses).toBe(1);
     expect(result.duplicateRate).toBe(0.25);
     expect(result.outcomeCoverage).toBe(1);
+  });
+
+  it("separates pending outcomes from missing shadow records", () => {
+    const evidence: CalibrationEvidence = {
+      installationId: "anna-local",
+      generatedAt: "2026-08-28T00:10:00Z",
+      syncedAt: "2026-08-28T00:10:00Z",
+      candidateLevel: { ...level, candidate_count: 5, episode_count: 5, pending: 1, missing_shadow: 1 },
+      episodeLevel: { ...level, candidate_count: 5, episode_count: 5, pending: 1, missing_shadow: 1 },
+      candidates: [
+        candidate(1, "SL_FIRST", -1),
+        candidate(2, "TP_FIRST", 1.5),
+        candidate(3, "SL_FIRST", -1),
+        candidate(4, "PENDING", null),
+        candidate(5, null, null),
+      ],
+    };
+
+    const result = analyzeCalibration(evidence);
+    expect(result.resolved).toHaveLength(3);
+    expect(result.outcomes.PENDING).toBe(1);
+    expect(result.outcomes.MISSING).toBe(1);
+    expect(result.outcomeCoverage).toBe(0.6);
   });
 });

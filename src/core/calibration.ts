@@ -23,7 +23,7 @@ export interface CalibrationAnalysis {
   duplicateRate: number;
   lossRate: number;
   outcomes: Record<string, number>;
-  regimes: Array<{ label: string; tp: number; sl: number; pending: number }>;
+  regimes: Array<{ label: string; tp: number; sl: number; pending: number; missing: number }>;
   gates: CalibrationReadinessGate[];
 }
 
@@ -55,15 +55,16 @@ export function analyzeCalibration(evidence: CalibrationEvidence): CalibrationAn
     };
   });
 
-  const outcomes: Record<string, number> = { TP_FIRST: 0, SL_FIRST: 0, PENDING: 0, AMBIGUOUS: 0, TIME_EXPIRED: 0 };
-  const regimeMap = new Map<string, { label: string; tp: number; sl: number; pending: number }>();
+  const outcomes: Record<string, number> = { TP_FIRST: 0, SL_FIRST: 0, PENDING: 0, MISSING: 0, AMBIGUOUS: 0, TIME_EXPIRED: 0 };
+  const regimeMap = new Map<string, { label: string; tp: number; sl: number; pending: number; missing: number }>();
   for (const candidate of episodes) {
-    const status = candidate.shadow_status ?? "PENDING";
+    const status = candidate.shadow_status ?? "MISSING";
     outcomes[status] = (outcomes[status] ?? 0) + 1;
     const label = `${candidate.regime} ${candidate.direction}`;
-    const regime = regimeMap.get(label) ?? { label, tp: 0, sl: 0, pending: 0 };
+    const regime = regimeMap.get(label) ?? { label, tp: 0, sl: 0, pending: 0, missing: 0 };
     if (status === "TP_FIRST") regime.tp += 1;
     else if (status === "SL_FIRST") regime.sl += 1;
+    else if (status === "MISSING") regime.missing += 1;
     else regime.pending += 1;
     regimeMap.set(label, regime);
   }

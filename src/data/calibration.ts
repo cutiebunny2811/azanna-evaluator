@@ -13,6 +13,7 @@ export interface CalibrationLevel {
   candidate_count: number;
   episode_count: number;
   pending: number;
+  missing_shadow?: number;
   ambiguous: number;
   time_expired: number;
   ai_avoided_losses: number;

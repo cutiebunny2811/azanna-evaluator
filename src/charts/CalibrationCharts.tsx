@@ -18,11 +18,11 @@ export function CalibrationDrawdownChart({ analysis }: { analysis: CalibrationAn
 }
 
 export function CalibrationOutcomeChart({ analysis }: { analysis: CalibrationAnalysis }) {
-  const labels = ["TP", "SL", "Pending", "Ambiguous", "Expired"];
-  const values = [analysis.outcomes.TP_FIRST, analysis.outcomes.SL_FIRST, analysis.outcomes.PENDING, analysis.outcomes.AMBIGUOUS, analysis.outcomes.TIME_EXPIRED];
-  return <Bar options={options} data={{ labels, datasets: [{ data: values, backgroundColor: ["#55d99f", "#f06f67", "#f2c14e", "#70aed8", "#89958e"], borderWidth: 0 }] }} />;
+  const labels = ["TP", "SL", "Pending", "Missing", "Ambiguous", "Expired"];
+  const values = [analysis.outcomes.TP_FIRST, analysis.outcomes.SL_FIRST, analysis.outcomes.PENDING, analysis.outcomes.MISSING, analysis.outcomes.AMBIGUOUS, analysis.outcomes.TIME_EXPIRED];
+  return <Bar options={options} data={{ labels, datasets: [{ data: values, backgroundColor: ["#55d99f", "#f06f67", "#f2c14e", "#c18cf2", "#70aed8", "#89958e"], borderWidth: 0 }] }} />;
 }
 
 export function CalibrationRegimeChart({ analysis }: { analysis: CalibrationAnalysis }) {
-  return <Bar options={{ ...options, plugins: { ...options.plugins, legend: { display: true, labels: { color: "#9aa69f", boxWidth: 10 } } }, scales: { ...options.scales, x: { ...options.scales.x, stacked: true }, y: { ...options.scales.y, stacked: true } } }} data={{ labels: analysis.regimes.map((item) => item.label), datasets: [{ label: "TP", data: analysis.regimes.map((item) => item.tp), backgroundColor: "#55d99f" }, { label: "SL", data: analysis.regimes.map((item) => item.sl), backgroundColor: "#f06f67" }, { label: "Pending", data: analysis.regimes.map((item) => item.pending), backgroundColor: "#f2c14e" }] }} />;
+  return <Bar options={{ ...options, plugins: { ...options.plugins, legend: { display: true, labels: { color: "#9aa69f", boxWidth: 10 } } }, scales: { ...options.scales, x: { ...options.scales.x, stacked: true }, y: { ...options.scales.y, stacked: true } } }} data={{ labels: analysis.regimes.map((item) => item.label), datasets: [{ label: "TP", data: analysis.regimes.map((item) => item.tp), backgroundColor: "#55d99f" }, { label: "SL", data: analysis.regimes.map((item) => item.sl), backgroundColor: "#f06f67" }, { label: "Pending", data: analysis.regimes.map((item) => item.pending), backgroundColor: "#f2c14e" }, { label: "Missing", data: analysis.regimes.map((item) => item.missing), backgroundColor: "#c18cf2" }] }} />;
 }
