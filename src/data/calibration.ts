@@ -49,6 +49,31 @@ export interface CalibrationEvidence {
   candidateLevel: CalibrationLevel;
   episodeLevel: CalibrationLevel;
   candidates: CalibrationCandidate[];
+  historyCandidates?: CalibrationCandidate[];
+}
+
+const HISTORY_PAGE_SIZE = 500;
+
+async function loadCandidateHistory(installationId: string): Promise<CalibrationCandidate[]> {
+  if (!supabase) return [];
+  const candidates: CalibrationCandidate[] = [];
+
+  for (let offset = 0; ; offset += HISTORY_PAGE_SIZE) {
+    const { data: rows, error } = await supabase
+      .from("azanna_calibration_candidates")
+      .select("payload")
+      .eq("installation_id", installationId)
+      .order("candidate_at", { ascending: false })
+      .order("signal_id", { ascending: false })
+      .range(offset, offset + HISTORY_PAGE_SIZE - 1);
+    if (error) throw error;
+
+    const page = (rows ?? []).map((row) => row.payload as CalibrationCandidate);
+    candidates.push(...page);
+    if (page.length < HISTORY_PAGE_SIZE) break;
+  }
+
+  return candidates;
 }
 
 export async function loadCalibrationEvidence(): Promise<CalibrationEvidence | null> {
@@ -61,20 +86,15 @@ export async function loadCalibrationEvidence(): Promise<CalibrationEvidence | n
   if (stateError) throw stateError;
   const state = states?.[0];
   if (!state) return null;
-  const { data: rows, error: candidateError } = await supabase
-    .from("azanna_calibration_candidates")
-    .select("payload")
-    .eq("installation_id", state.installation_id)
-    .order("candidate_at", { ascending: false })
-    .limit(500);
-  if (candidateError) throw candidateError;
   const summary = state.summary as { candidate_level: CalibrationLevel; episode_level: CalibrationLevel };
+  const historyCandidates = await loadCandidateHistory(state.installation_id);
   return {
     installationId: state.installation_id,
     generatedAt: state.generated_at,
     syncedAt: state.synced_at,
     candidateLevel: summary.candidate_level,
     episodeLevel: summary.episode_level,
-    candidates: (rows ?? []).map((row) => row.payload as CalibrationCandidate),
+    candidates: historyCandidates.slice(0, summary.candidate_level.candidate_count),
+    historyCandidates,
   };
 }

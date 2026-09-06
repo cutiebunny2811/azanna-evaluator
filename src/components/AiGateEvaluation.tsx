@@ -1,4 +1,5 @@
-import { BrainCircuit, CheckCircle2, RefreshCw, XCircle } from "lucide-react";
+import { useEffect, useState } from "react";
+import { BrainCircuit, CheckCircle2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, RefreshCw, XCircle } from "lucide-react";
 import { CalibrationDrawdownChart, CalibrationEquityChart, CalibrationOutcomeChart, CalibrationRegimeChart } from "../charts/CalibrationCharts";
 import { analyzeCalibration } from "../core/calibration";
 import type { CalibrationEvidence, CalibrationLayer } from "../data/calibration";
@@ -19,6 +20,12 @@ const rValue = (value: number | null) => value === null ? "N/A" : `${value >= 0 
 export function AiGateEvaluation(props: Props) {
   const th = props.language === "th";
   const evidence = props.evidence;
+  const historyCandidates = evidence?.historyCandidates ?? evidence?.candidates ?? [];
+  const [historyPage, setHistoryPage] = useState(1);
+  const [historyPageSize, setHistoryPageSize] = useState(50);
+  const historyPageCount = Math.max(1, Math.ceil(historyCandidates.length / historyPageSize));
+  const historyStart = (historyPage - 1) * historyPageSize;
+  const visibleHistory = historyCandidates.slice(historyStart, historyStart + historyPageSize);
   const level = evidence?.episodeLevel;
   const analysis = evidence ? analyzeCalibration(evidence) : null;
   const missingShadow = level?.missing_shadow ?? analysis?.outcomes.MISSING ?? 0;
@@ -35,6 +42,14 @@ export function AiGateEvaluation(props: Props) {
     [th ? "AI อนุมัติ" : "AI-approved", level?.ai_gate],
   ];
   const reasons = Object.entries(level?.reject_reasons ?? {}).sort((a, b) => b[1] - a[1]);
+
+  useEffect(() => {
+    setHistoryPage(1);
+  }, [evidence?.syncedAt]);
+
+  useEffect(() => {
+    setHistoryPage((current) => Math.min(current, historyPageCount));
+  }, [historyPageCount]);
 
   return <section className="ai-eval band" id="ai-evaluation" aria-label={th ? "ประเมิน AI Gate" : "AI gate evaluation"}>
     <header className="ai-eval__header">
@@ -123,16 +138,46 @@ export function AiGateEvaluation(props: Props) {
           </section>
         </>}
 
-        <div className="ai-eval__table table-wrap" id={anchors.trades}>
-          <table><thead><tr><th>Signal</th><th>{th ? "เวลา" : "Time"}</th><th>Setup</th><th>AI</th><th>Shadow</th><th>R</th></tr></thead>
-          <tbody>{evidence.candidates.slice(0, 30).map((candidate) => <tr key={candidate.signal_id}>
-            <td>#{candidate.signal_id}{candidate.is_duplicate ? <small className="duplicate-tag">DUP</small> : <small className="episode-tag">EP</small>}</td>
-            <td>{new Date(candidate.created_at).toLocaleString(th ? "th-TH" : "en-US", { dateStyle: "short", timeStyle: "short" })}</td>
-            <td>{candidate.regime} {candidate.direction}</td>
-            <td>{candidate.ai_reused ? "REUSED REJECT" : candidate.ai_final_action ?? "N/A"}</td>
-            <td>{candidate.shadow_status ?? "NO_SHADOW"}</td>
-            <td className={(candidate.hypothetical_r ?? 0) >= 0 ? "positive" : "negative"}>{rValue(candidate.hypothetical_r)}</td>
-          </tr>)}</tbody></table>
+        <div className="ai-eval__history" id={anchors.trades}>
+          <header className="ai-eval__history-toolbar">
+            <div>
+              <strong>{th ? "ประวัติ Candidate ที่ซิงก์แล้ว" : "Synced candidate history"}</strong>
+              <small>{historyCandidates.length === 0
+                ? (th ? "ยังไม่มีข้อมูล" : "No history yet")
+                : (th
+                  ? `แสดง ${historyStart + 1}-${Math.min(historyStart + historyPageSize, historyCandidates.length)} จาก ${historyCandidates.length} รายการ`
+                  : `Showing ${historyStart + 1}-${Math.min(historyStart + historyPageSize, historyCandidates.length)} of ${historyCandidates.length}`)}</small>
+            </div>
+            <label>
+              <span>{th ? "แถวต่อหน้า" : "Rows per page"}</span>
+              <select value={historyPageSize} onChange={(event) => {
+                setHistoryPageSize(Number(event.target.value));
+                setHistoryPage(1);
+              }}>
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+              </select>
+            </label>
+            <nav aria-label={th ? "เปลี่ยนหน้าประวัติ" : "History pagination"}>
+              <button className="icon-button" title={th ? "หน้าแรก" : "First page"} aria-label={th ? "หน้าแรก" : "First page"} disabled={historyPage === 1} onClick={() => setHistoryPage(1)}><ChevronsLeft size={16} /></button>
+              <button className="icon-button" title={th ? "หน้าก่อน" : "Previous page"} aria-label={th ? "หน้าก่อน" : "Previous page"} disabled={historyPage === 1} onClick={() => setHistoryPage((page) => Math.max(1, page - 1))}><ChevronLeft size={16} /></button>
+              <span>{historyPage} / {historyPageCount}</span>
+              <button className="icon-button" title={th ? "หน้าถัดไป" : "Next page"} aria-label={th ? "หน้าถัดไป" : "Next page"} disabled={historyPage === historyPageCount} onClick={() => setHistoryPage((page) => Math.min(historyPageCount, page + 1))}><ChevronRight size={16} /></button>
+              <button className="icon-button" title={th ? "หน้าสุดท้าย" : "Last page"} aria-label={th ? "หน้าสุดท้าย" : "Last page"} disabled={historyPage === historyPageCount} onClick={() => setHistoryPage(historyPageCount)}><ChevronsRight size={16} /></button>
+            </nav>
+          </header>
+          <div className="ai-eval__table table-wrap">
+            <table><thead><tr><th>Signal</th><th>{th ? "เวลา" : "Time"}</th><th>Setup</th><th>AI</th><th>Shadow</th><th>R</th></tr></thead>
+            <tbody>{visibleHistory.map((candidate) => <tr key={candidate.signal_id}>
+              <td>#{candidate.signal_id}{candidate.is_duplicate ? <small className="duplicate-tag">DUP</small> : <small className="episode-tag">EP</small>}</td>
+              <td>{new Date(candidate.created_at).toLocaleString(th ? "th-TH" : "en-US", { dateStyle: "short", timeStyle: "short" })}</td>
+              <td>{candidate.regime} {candidate.direction}</td>
+              <td>{candidate.ai_reused ? "REUSED REJECT" : candidate.ai_final_action ?? "N/A"}</td>
+              <td>{candidate.shadow_status ?? "NO_SHADOW"}</td>
+              <td className={(candidate.hypothetical_r ?? 0) >= 0 ? "positive" : "negative"}>{rValue(candidate.hypothetical_r)}</td>
+            </tr>)}</tbody></table>
+          </div>
         </div>
         <footer>{th ? "ซิงก์ล่าสุด" : "Last sync"}: {new Date(evidence.syncedAt).toLocaleString(th ? "th-TH" : "en-US")}</footer>
       </>}
