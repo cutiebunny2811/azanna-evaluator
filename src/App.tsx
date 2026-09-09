@@ -10,7 +10,7 @@ import { evaluate } from "./core/deployment";
 import { inferInitialEquity } from "./core/drawdown";
 import { buildMarkdownReport, downloadMarkdown } from "./core/report";
 import { deleteCloudRun, listCloudRuns, loadCloudRun, saveCloudRun, type CloudRunSummary } from "./data/cloud";
-import { loadCalibrationEvidence, type CalibrationEvidence } from "./data/calibration";
+import { listCalibrationInstallations, loadCalibrationEvidence, type CalibrationEvidence, type CalibrationInstallation } from "./data/calibration";
 import { createDemoTrades } from "./data/demo";
 import { readCsvFile } from "./data/csv";
 import { clearCachedState, loadCachedState, saveCachedState } from "./data/localCache";
@@ -36,6 +36,8 @@ export default function App() {
   const [cloudBusy, setCloudBusy] = useState(false);
   const [cloudNotice, setCloudNotice] = useState("");
   const [calibration, setCalibration] = useState<CalibrationEvidence | null>(null);
+  const [calibrationProfiles, setCalibrationProfiles] = useState<CalibrationInstallation[]>([]);
+  const [selectedCalibrationId, setSelectedCalibrationId] = useState(() => localStorage.getItem("azanna-calibration-installation") ?? "");
   const [calibrationBusy, setCalibrationBusy] = useState(false);
   const [calibrationError, setCalibrationError] = useState("");
   const fileInput = useRef<HTMLInputElement>(null);
@@ -96,17 +98,26 @@ export default function App() {
   }, [session]);
 
   const refreshCalibration = useCallback(async () => {
-    if (!session) { setCalibration(null); return; }
+    if (!session) { setCalibration(null); setCalibrationProfiles([]); return; }
     setCalibrationBusy(true);
     setCalibrationError("");
     try {
-      setCalibration(await loadCalibrationEvidence());
+      const profiles = await listCalibrationInstallations();
+      const activeId = profiles.some((profile) => profile.installationId === selectedCalibrationId)
+        ? selectedCalibrationId
+        : profiles[0]?.installationId ?? "";
+      setCalibrationProfiles(profiles);
+      if (activeId !== selectedCalibrationId) {
+        setSelectedCalibrationId(activeId);
+        if (activeId) localStorage.setItem("azanna-calibration-installation", activeId);
+      }
+      setCalibration(activeId ? await loadCalibrationEvidence(activeId) : null);
     } catch (error) {
       setCalibrationError(errorText(error));
     } finally {
       setCalibrationBusy(false);
     }
-  }, [session]);
+  }, [selectedCalibrationId, session]);
 
   useEffect(() => {
     if (!session) { setCloudRuns([]); return; }
@@ -255,10 +266,17 @@ export default function App() {
         language={language}
         signedIn={Boolean(session)}
         evidence={calibration}
+        profiles={calibrationProfiles}
+        selectedInstallationId={selectedCalibrationId}
         loading={calibrationBusy}
         error={calibrationError}
         anchorMode={!evaluation}
         onRefresh={refreshCalibration}
+        onSelectInstallation={(installationId) => {
+          localStorage.setItem("azanna-calibration-installation", installationId);
+          setSelectedCalibrationId(installationId);
+          setCalibration(null);
+        }}
       />
 
       {dataset && <details className="settings-panel">

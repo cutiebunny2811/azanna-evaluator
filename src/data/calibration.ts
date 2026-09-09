@@ -52,6 +52,21 @@ export interface CalibrationEvidence {
   historyCandidates?: CalibrationCandidate[];
 }
 
+export interface CalibrationInstallation {
+  installationId: string;
+  generatedAt: string;
+  syncedAt: string;
+  candidateCount: number;
+  episodeCount: number;
+}
+
+interface CalibrationStateRow {
+  installation_id: string;
+  summary: { candidate_level: CalibrationLevel; episode_level: CalibrationLevel };
+  generated_at: string;
+  synced_at: string;
+}
+
 const HISTORY_PAGE_SIZE = 500;
 
 async function loadCandidateHistory(installationId: string): Promise<CalibrationCandidate[]> {
@@ -76,17 +91,41 @@ async function loadCandidateHistory(installationId: string): Promise<Calibration
   return candidates;
 }
 
-export async function loadCalibrationEvidence(): Promise<CalibrationEvidence | null> {
+export function calibrationInstallationLabel(installationId: string): string {
+  const normalized = installationId.toLowerCase();
+  if (normalized.includes("karina") || normalized.includes("gold")) return "Karina / XAUUSDm";
+  if (normalized.includes("anna") || normalized.includes("btc")) return "Anna / BTCUSDm";
+  return installationId;
+}
+
+export async function listCalibrationInstallations(): Promise<CalibrationInstallation[]> {
   if (!supabase) throw new Error("Cloud sync is not configured");
   const { data: states, error: stateError } = await supabase
     .from("azanna_calibration_state")
     .select("installation_id, summary, generated_at, synced_at")
-    .order("synced_at", { ascending: false })
+    .order("synced_at", { ascending: false });
+  if (stateError) throw stateError;
+
+  return ((states ?? []) as CalibrationStateRow[]).map((state) => ({
+    installationId: state.installation_id,
+    generatedAt: state.generated_at,
+    syncedAt: state.synced_at,
+    candidateCount: state.summary.candidate_level?.candidate_count ?? 0,
+    episodeCount: state.summary.episode_level?.episode_count ?? 0,
+  }));
+}
+
+export async function loadCalibrationEvidence(installationId: string): Promise<CalibrationEvidence | null> {
+  if (!supabase) throw new Error("Cloud sync is not configured");
+  const { data: states, error: stateError } = await supabase
+    .from("azanna_calibration_state")
+    .select("installation_id, summary, generated_at, synced_at")
+    .eq("installation_id", installationId)
     .limit(1);
   if (stateError) throw stateError;
-  const state = states?.[0];
+  const state = states?.[0] as CalibrationStateRow | undefined;
   if (!state) return null;
-  const summary = state.summary as { candidate_level: CalibrationLevel; episode_level: CalibrationLevel };
+  const summary = state.summary;
   const historyCandidates = await loadCandidateHistory(state.installation_id);
   return {
     installationId: state.installation_id,

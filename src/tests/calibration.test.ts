@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { analyzeCalibration } from "../core/calibration";
-import type { CalibrationCandidate, CalibrationEvidence, CalibrationLevel } from "../data/calibration";
+import { calibrationInstallationLabel, type CalibrationCandidate, type CalibrationEvidence, type CalibrationLevel } from "../data/calibration";
 
 const layer = { candidates: 0, resolved: 0, wins: 0, losses: 0, total_r: 0, expectancy_r: null };
 const level: CalibrationLevel = { candidate_count: 4, episode_count: 3, pending: 0, missing_shadow: 0, ambiguous: 0, time_expired: 0, ai_avoided_losses: 2, ai_missed_winners: 0, ai_net_value_r: 2, reject_reasons: {}, scanner: layer, hard_filter: layer, ai_gate: layer };
@@ -23,6 +23,12 @@ const candidate = (signal: number, status: string | null, r: number | null, dupl
 });
 
 describe("calibration analysis", () => {
+  it("labels each bot installation with its own market", () => {
+    expect(calibrationInstallationLabel("anna-local")).toBe("Anna / BTCUSDm");
+    expect(calibrationInstallationLabel("karina-gold-local")).toBe("Karina / XAUUSDm");
+    expect(calibrationInstallationLabel("research-box")).toBe("research-box");
+  });
+
   it("uses independent episodes and calculates R drawdown", () => {
     const evidence: CalibrationEvidence = {
       installationId: "anna-local",

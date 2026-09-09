@@ -2,17 +2,20 @@ import { useEffect, useState } from "react";
 import { BrainCircuit, CheckCircle2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, RefreshCw, XCircle } from "lucide-react";
 import { CalibrationDrawdownChart, CalibrationEquityChart, CalibrationOutcomeChart, CalibrationRegimeChart } from "../charts/CalibrationCharts";
 import { analyzeCalibration } from "../core/calibration";
-import type { CalibrationEvidence, CalibrationLayer } from "../data/calibration";
+import { calibrationInstallationLabel, type CalibrationEvidence, type CalibrationInstallation, type CalibrationLayer } from "../data/calibration";
 import type { Language } from "../i18n/strings";
 
 interface Props {
   language: Language;
   signedIn: boolean;
   evidence: CalibrationEvidence | null;
+  profiles: CalibrationInstallation[];
+  selectedInstallationId: string;
   loading: boolean;
   error: string;
   anchorMode: boolean;
   onRefresh: () => Promise<void>;
+  onSelectInstallation: (installationId: string) => void;
 }
 
 const rValue = (value: number | null) => value === null ? "N/A" : `${value >= 0 ? "+" : ""}${value.toFixed(2)}R`;
@@ -58,12 +61,27 @@ export function AiGateEvaluation(props: Props) {
         <strong>{th ? "หลักฐาน AI Gate" : "AI Gate Evidence"}</strong>
         <small>{th ? "ตัดสินจาก Market Episode เป็นหลัก เพื่อลดการนับ Setup ซ้ำ" : "Market episodes are primary to avoid counting repeated setups as independent evidence."}</small>
       </div>
-      {props.signedIn && <button className="icon-button" title={th ? "รีเฟรชหลักฐาน" : "Refresh evidence"} disabled={props.loading} onClick={() => void props.onRefresh()}><RefreshCw size={17} /></button>}
+      {props.signedIn && <div className="ai-eval__actions">
+        {props.profiles.length > 0 && <label className="calibration-profile">
+          <span>{th ? "บอท / ตลาด" : "Bot / market"}</span>
+          <select aria-label={th ? "เลือกบอทและตลาด" : "Select bot and market"} value={props.selectedInstallationId} onChange={(event) => props.onSelectInstallation(event.target.value)}>
+            {props.profiles.map((profile) => <option key={profile.installationId} value={profile.installationId}>
+              {calibrationInstallationLabel(profile.installationId)} · {profile.candidateCount} Candidate
+            </option>)}
+          </select>
+        </label>}
+        <button className="icon-button" title={th ? "รีเฟรชหลักฐาน" : "Refresh evidence"} aria-label={th ? "รีเฟรชหลักฐาน" : "Refresh evidence"} disabled={props.loading} onClick={() => void props.onRefresh()}><RefreshCw size={17} /></button>
+      </div>}
     </header>
 
-    {!props.signedIn ? <p className="ai-eval__notice">{th ? "เข้าสู่ระบบด้านบนเพื่อดูหลักฐานที่ Anna ซิงก์อัตโนมัติ" : "Sign in above to view Anna's automatically synced evidence."}</p>
+    {!props.signedIn ? <p className="ai-eval__notice">{th ? "เข้าสู่ระบบด้านบนเพื่อดูหลักฐานที่บอทซิงก์อัตโนมัติ" : "Sign in above to view automatically synced bot evidence."}</p>
       : props.error ? <p className="ai-eval__notice negative">{props.error}</p>
       : !evidence ? <p className="ai-eval__notice">{props.loading ? (th ? "กำลังโหลดหลักฐาน..." : "Loading evidence...") : (th ? "ยังไม่มีข้อมูลจาก scanner" : "No scanner evidence yet.")}</p>
+      : evidence.candidateLevel.candidate_count === 0 ? <div className="ai-eval__empty">
+        <strong>{calibrationInstallationLabel(evidence.installationId)}</strong>
+        <span>{th ? "เชื่อมต่อแล้ว กำลังรอ Candidate แรกจาก scanner" : "Connected and waiting for the first scanner candidate."}</span>
+        <small>{th ? "สถิติและ Shadow จะเริ่มจากข้อมูลจริงของบอทนี้" : "Metrics and shadow evidence will begin with this bot's real data."}</small>
+      </div>
       : <>
         <div className="ai-eval__metrics" id={anchors.performance}>
           <div><span>{th ? "Candidate / Episode" : "Candidates / Episodes"}</span><strong>{evidence.candidateLevel.candidate_count} / {level?.episode_count ?? 0}</strong><small>{th ? "ใช้ Episode เป็นหน่วยหลัก" : "Episodes are the primary unit"}</small></div>
